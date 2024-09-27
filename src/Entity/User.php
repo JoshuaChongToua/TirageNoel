@@ -57,6 +57,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\OneToMany(mappedBy: 'createur', targetEntity: Partie::class)]
     private Collection $parties;
+
+    #[ORM\ManyToOne(inversedBy: 'joueur')]
+    private ?Choix $choix = null;
+
+    /**
+     * @var Collection<int, Choix>
+     */
+    #[ORM\OneToMany(targetEntity: Choix::class, mappedBy: 'joueur')]
+    private Collection $choixes;
     
 
     public function __construct()
@@ -66,6 +75,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->tirageResultats = new ArrayCollection();
         $this->parties = new ArrayCollection();
         $this->tiragesEnTantQueDestinataire = new ArrayCollection();
+        $this->choixes = new ArrayCollection();
 
     }
    
@@ -294,6 +304,48 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // Unset the owning side
             if ($tirageResultat->getDestinataire() === $this) {
                 $tirageResultat->setDestinataire(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function getChoix(): ?Choix
+    {
+        return $this->choix;
+    }
+
+    public function setChoix(?Choix $choix): static
+    {
+        $this->choix = $choix;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Choix>
+     */
+    public function getChoixes(): Collection
+    {
+        return $this->choixes;
+    }
+
+    public function addChoix(Choix $choix): static
+    {
+        if (!$this->choixes->contains($choix)) {
+            $this->choixes->add($choix);
+            $choix->setJoueur($this);
+        }
+
+        return $this;
+    }
+
+    public function removeChoix(Choix $choix): static
+    {
+        if ($this->choixes->removeElement($choix)) {
+            // set the owning side to null (unless already changed)
+            if ($choix->getJoueur() === $this) {
+                $choix->setJoueur(null);
             }
         }
 

@@ -28,6 +28,8 @@
 
 	<a class="btn btn-primary" href="{{ path('mes_parties_addSouhait', {id: partie.id})}}">Souhaits</a>
 
+	<a class="btn btn-primary" href="{{ path('app_choixPersonne', {id: partie.id})}}">Choix</a>
+
 	{% if util.role == "hote" %}
 
 		{% if tirageResultats == [] %}
@@ -75,7 +77,6 @@
 						{% for user in users %}
 							{% if user.id == resultat.destinataireId %}
 								<li class="list-group-item">{{ user.username }}</li>
-
 								{% for partieRejoint in partiesRejoints %}
 									{% if user.id == partieRejoint.userId %}
 										{# Vérification si les souhaits sont un tableau (itérable) #}
@@ -109,33 +110,12 @@
 		</div>
 	</div>
 
+	votre choix est : {{choix}}
+	
+	<br>
+	a faire : ne pas pouvoir ce choisir soit meme
+<br>
 
-	<div class="modal fade" id="souhaitsModal" tabindex="-1" aria-labelledby="souhaitsModalLabel" aria-hidden="true">
-		<div class="modal-dialog">
-			<div class="modal-content">
-				<div class="modal-header">
-					<h5 class="modal-title" id="souhaitsModalLabel">Les souhaits</h5>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-				</div>
-				<div
-					class="modal-body">
-					<!-- Ici tu mets le contenu de ta card -->
-					<div class="card">
-						<div class="card-header">
-							Informations de la partie
-						</div>
-						<div class="card-body">
-							<h5 class="card-title">Souhaits de l'utilisateur</h5>
-							<p class="card-text">Liste des souhaits ici...</p>
-						</div>
-					</div>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-				</div>
-			</div>
-		</div>
-	</div>
-
+supprimmer en base lors d'un choix
 
 {% endblock %}

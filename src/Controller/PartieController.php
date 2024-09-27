@@ -108,12 +108,14 @@ class PartieController extends AbstractController
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
             if ($form->get('no_password')->getData()) {
-                $partie->setPassword(null); // Définir le mot de passe à null si la case est cochée
+                $partie->setPassword(null);
             } else {
-                $plainPassword = $partie->getPassword();
-                if (!empty($plainPassword)) {
-                    // Hacher le mot de passe s'il est renseigné
-                    $partie->setPassword($hasher->hashPassword($user, $partie->getPassword()));
+                if (empty($partie->getPassword())) {
+                    $partie->setPassword($originalPassword);
+                } else {
+                    $plainPassword = $partie->getPassword();
+                    $hashedPassword = $hasher->hashPassword($user, $plainPassword);
+                    $partie->setPassword($hashedPassword);
                 }
             }
             $em->flush();

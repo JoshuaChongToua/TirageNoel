@@ -2,11 +2,13 @@
 
 namespace App\Controller;
 
+use App\Entity\Choix;
 use App\Entity\Partie;
 use App\Entity\PartieRejoint;
 use App\Entity\TirageResultat;
 use App\Form\PartieType;
 use App\Form\SouhaitType;
+use App\Repository\ChoixRepository;
 use App\Repository\PartieRejointRepository;
 use App\Repository\PartieRepository;
 use App\Repository\TirageResultatRepository;
@@ -51,13 +53,18 @@ class MesPartiesController extends AbstractController
 
 
     #[Route('/mes-parties/view/{id}', name: 'mes_parties_view')]
-    public function view(PartieRejointRepository $partieRejointRepository, PartieRepository $partieRepo, $id, UserRepository $userRepository, TirageResultatRepository $tirageResultatRepository): Response
+    public function view(ChoixRepository $choixRepository, PartieRejointRepository $partieRejointRepository, PartieRepository $partieRepo, $id, UserRepository $userRepository, TirageResultatRepository $tirageResultatRepository): Response
     {
         $user = $this->getUser();
         $partie = $partieRepo->find($id);
         $users = $userRepository->findAll();
         $tirageResultats = $tirageResultatRepository->findByPartieId($partie);
+        $choix = $choixRepository->findAll();
+        $choixFinal = "";
 
+        if($choixRepository) {
+            $choixFinal = $choixRepository->findOneBy(['joueur' =>$user, 'partie' => $partie])->getPersonneChoisie()->getUsername();
+        } 
         $roleUser = $partieRejointRepository->findOneBy([
             'partie' => $partie,
             'user' => $user
@@ -70,7 +77,8 @@ class MesPartiesController extends AbstractController
             'partiesRejoints' => $partiesRejoints,
             'users' => $users,
             'tirageResultats' => $tirageResultats,
-            'util'=> $roleUser
+            'util'=> $roleUser,
+            'choix' => $choixFinal
         ]);
     }
 

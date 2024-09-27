@@ -28,7 +28,6 @@ class PartieRejoint
 
     #[ORM\Column(type: 'simple_array', nullable: true)]
     private ?array $souhaits = [];
-
     
 
     public function getId(): ?int

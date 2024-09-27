@@ -40,10 +40,17 @@ class Partie
     #[ORM\OneToMany(targetEntity: TirageResultat::class, mappedBy: 'partie', orphanRemoval: true)]
     private Collection $tirageResultats;
 
+    /**
+     * @var Collection<int, Choix>
+     */
+    #[ORM\OneToMany(targetEntity: Choix::class, mappedBy: 'partie')]
+    private Collection $choixes;
+
     public function __construct()
     {
         $this->partieRejoints = new ArrayCollection();
         $this->tirageResultats = new ArrayCollection();
+        $this->choixes = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -158,6 +165,36 @@ class Partie
             // set the owning side to null (unless already changed)
             if ($tirageResultat->getPartie() === $this) {
                 $tirageResultat->setPartie(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Choix>
+     */
+    public function getChoixes(): Collection
+    {
+        return $this->choixes;
+    }
+
+    public function addChoix(Choix $choix): static
+    {
+        if (!$this->choixes->contains($choix)) {
+            $this->choixes->add($choix);
+            $choix->setPartie($this);
+        }
+
+        return $this;
+    }
+
+    public function removeChoix(Choix $choix): static
+    {
+        if ($this->choixes->removeElement($choix)) {
+            // set the owning side to null (unless already changed)
+            if ($choix->getPartie() === $this) {
+                $choix->setPartie(null);
             }
         }
 
