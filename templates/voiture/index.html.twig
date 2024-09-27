@@ -1,0 +1,55 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Hello VoitureController!{% endblock %}
+
+{% block body %}
+<style>
+    .example-wrapper { margin: 1em auto; max-width: 800px; width: 95%; font: 18px/1.5 sans-serif; }
+    .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
+</style>
+
+<div class="example-wrapper">
+    <h1>Hello {{ controller_name }}! ✅</h1>   
+
+    <p>Total : {{total}} voitures trouvé</p>
+
+    <a class="btn btn-primary" href="{{ path('voiture_create')}}">Ajout</a>
+    <table class="table">
+    <thead>
+        <tr>
+            <th scope="col">id</th>
+            <th scope="col">nom</th>
+            <th scope="col">annee</th>
+            <th scope="col">couleur</th>
+            <th scope="col">carburant</th>
+            <th scope="col">categorie</th>
+            <th scope="col">Image</th>
+            <th scope="col">Options</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for voiture in voitures %}
+            <tr>
+                <td><a href="{{ path('voiture_view', {id: voiture.id})}}">{{voiture.id}}</a></td>
+                <td>{{voiture.nom}}</td>
+                <td>{{voiture.annee}}</td>
+                <td>{{voiture.couleur}}</td>
+                <td>{{voiture.carburant}}</td>
+                {% if voiture.categorie %}
+                    <td>{{voiture.categorie.nom}}</td>
+                    {% else %}
+                    <td></td>
+                {% endif %}
+                <td><img src="/images/voitures/{{voiture.image}}" alt=""></td>
+                <td><a class="btn btn-primary" href="{{ path('voiture_edit', {id: voiture.id})}}">Modifier</a>
+                    <form action="{{ path('voiture_delete', {id: voiture.id})}}" method="post">
+                        <input type="hidden" name="_method" value="DELETE">
+                        <button type="submit" class="btn btn-danger" >Supprimer</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+    </table>
+</div>
+{% endblock %}

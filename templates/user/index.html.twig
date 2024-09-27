@@ -1,0 +1,52 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Hello UserController!{% endblock %}
+
+{% block body %}
+<style>
+    .example-wrapper { margin: 1em auto; max-width: 800px; width: 95%; font: 18px/1.5 sans-serif; }
+    .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
+</style>
+{% if app.user %}
+    <div class="example-wrapper">
+        <h1>Hello {{ controller_name }}! ✅</h1>   
+        
+        {% if app.user.role.name == "Admin" %}
+            <a class="btn btn-primary" href="{{ path('user_create')}}">Ajout</a>
+        {% endif %} 
+        <table class="table">
+        <thead>
+            <tr>
+                <th scope="col">id</th>
+                <th scope="col">nom</th>
+                <th scope="col">email</th>
+                <th scope="col">role</th>
+                <th scope="col">option</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+                <tr>
+                    <td><a href="{{ path('user_view', {id: user.id})}}">{{user.id}}</a></td>
+                    <td>{{user.username}}</td>
+                    <td>{{user.email}}</td>
+                    <td>{{user.role.name}}</td>
+                    <td>
+                        {% if app.user.id == user.id %}
+                            <a class="btn btn-primary" href="{{ path('user_edit', {id: user.id})}}">Modifier</a>  
+                        {% endif %}
+                        {% if app.user.role.name == "Admin" %}
+                            <a class="btn btn-primary" href="{{ path('userRole_edit', {id: user.id})}}">Modifier Role</a>   
+                            <form action="{{ path('user_delete', {id: user.id})}}" method="post">
+                                <input type="hidden" name="_method" value="DELETE">
+                                <button type="submit" class="btn btn-danger" >Supprimer</button>
+                            </form>
+                        {% endif %} 
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+        </table>
+    </div>
+{% endif %}
+{% endblock %}

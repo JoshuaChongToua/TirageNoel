@@ -1,0 +1,141 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Hello
+	{{partie.name}}!
+{% endblock %}
+
+{% block body %}
+	<style>
+		.example-wrapper {
+			margin: 1em auto;
+			max-width: 800px;
+			width: 95%;
+			font: 18px / 1.5 sans-serif;
+		}
+		.example-wrapper code {
+			background: #F5F5F5;
+			padding: 2px 6px;
+		}
+	</style>
+
+
+	<div class="example-wrapper">
+		<p>{{partie.name}}</p>
+		{% if util.role == "hote" %}
+			<a class="btn btn-primary" href="{{ path('mes_parties_edit', {id: partie.id})}}">Modifier</a>
+		{% endif %}
+	</div>
+
+	<a class="btn btn-primary" href="{{ path('mes_parties_addSouhait', {id: partie.id})}}">Souhaits</a>
+
+	{% if util.role == "hote" %}
+
+		{% if tirageResultats == [] %}
+			<a class="btn btn-warning" href="{{ path('partie_tirage', {id: partie.id})}}">Commencer le jeu</a>
+		{% else %}
+			<form action="{{ path('partie_terminee', {id: partie.id}) }}" method="post">
+				<button type="submit" class="btn btn-warning">Fin de la partie</button>
+			</form>
+		{% endif %}
+	{% endif %}
+
+
+	<div class="d-flex justify-content-start align-items-center ">
+		<div class="card" style="width: 18rem;">
+			<div class="card-header">
+				Liste des joueurs
+			</div>
+			<ul class="list-group list-group-flush">
+				{% for partieRejoint in partiesRejoints %}
+					{% for user in users %}
+						{% if user.id == partieRejoint.userId %}
+							<li class="list-group-item">{{user.username}}
+								{% if user.id == app.user.id %}
+									(vous)
+								{% endif %}
+								{% if partieRejoint.role == "hote" %}
+									(hote)
+								{% endif %}
+							</li>
+						{% endif %}
+					{% endfor %}
+				{% endfor %}
+			</ul>
+		</div>
+	</div>
+
+	<div class="d-flex justify-content-start align-items-center">
+		<div class="card" style="width: 18rem;">
+			<div class="card-header">
+				Cible
+			</div>
+			<ul class="list-group list-group-flush">
+				{% for resultat in tirageResultats %}
+					{% if app.user.id == resultat.joueurId %}
+						{% for user in users %}
+							{% if user.id == resultat.destinataireId %}
+								<li class="list-group-item">{{ user.username }}</li>
+
+								{% for partieRejoint in partiesRejoints %}
+									{% if user.id == partieRejoint.userId %}
+										{# Vérification si les souhaits sont un tableau (itérable) #}
+										{% if partieRejoint.souhaits is iterable %}
+											{# Si souhaits est un tableau, on l'affiche normalement #}
+											{% for souhait in partieRejoint.souhaits %}
+												<li class="list-group-item">{{ souhait }}</li>
+											{% endfor %}
+										{% else %}
+											{# Sinon, c'est une chaîne qu'on divise par les virgules #}
+											{% for souhait in partieRejoint.souhaits|split(',') %}
+												<li class="list-group-item">
+													{% for part in souhait|split(' ') %}
+														{# Vérification de l'URL avec l'expression régulière correcte #}
+														{% if part matches '/^https?:\\/\\/\\S+$/' %}
+															<a href="{{ part|trim }}">{{ part|trim }}</a>
+														{% else %}
+															{{ part ~ ' ' }}
+														{% endif %}
+													{% endfor %}
+												</li>
+											{% endfor %}
+										{% endif %}
+									{% endif %}
+								{% endfor %}
+							{% endif %}
+						{% endfor %}
+					{% endif %}
+				{% endfor %}
+			</ul>
+		</div>
+	</div>
+
+
+	<div class="modal fade" id="souhaitsModal" tabindex="-1" aria-labelledby="souhaitsModalLabel" aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title" id="souhaitsModalLabel">Les souhaits</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div
+					class="modal-body">
+					<!-- Ici tu mets le contenu de ta card -->
+					<div class="card">
+						<div class="card-header">
+							Informations de la partie
+						</div>
+						<div class="card-body">
+							<h5 class="card-title">Souhaits de l'utilisateur</h5>
+							<p class="card-text">Liste des souhaits ici...</p>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+
+{% endblock %}

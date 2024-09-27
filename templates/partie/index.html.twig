@@ -1,0 +1,92 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Hello PartieController!
+{% endblock %}
+
+{% block body %}
+	<style>
+		.example-wrapper {
+			margin: 1em auto;
+			max-width: 800px;
+			width: 95%;
+			font: 18px / 1.5 sans-serif;
+		}
+		.example-wrapper code {
+			background: #F5F5F5;
+			padding: 2px 6px;
+		}
+	</style>
+
+	<div class="example-wrapper">
+		<h1>Hello
+			{{ controller_name }}! ✅</h1>
+
+		<a class="btn btn-primary" href="{{ path('partie_create')}}">Ajout</a>
+
+		<table class="table">
+			<thead>
+				<tr>
+					<th scope="col">id</th>
+					<th scope="col">nom</th>
+					<th scope="col">Createur</th>
+					<th scope="col">option</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for partie in parties %}
+					<tr>
+						<td>
+							<a href="{{ path('parties_view', {id: partie.id })}}">{{partie.id}}</a>
+						</td>
+						<td>{{partie.name}}</td>
+						<td>{{partie.createur.username}}</td>
+						<td>
+							{% if app.user.id == partie.createur.id %}
+								<a class="btn btn-primary" href="{{ path('partie_edit', {id: partie.id})}}">Modifier</a>
+							{% endif %}
+							{% if app.user.role.name == "Admin" or app.user.id == partie.createur.id  %}
+								<form action="{{ path('partie_delete', {id: partie.id})}}" method="post">
+									<input type="hidden" name="_method" value="DELETE">
+									<button type="submit" class="btn btn-danger">Supprimer</button>
+								</form>
+							{% endif %}
+
+							{% set hasJoined = false %}
+							{% set tirageEnCours = false %}
+
+							{% if tirages %}
+								{% for tirage in tirages %}
+									{% if tirage.partie.id == partie.id %}
+										{% set tirageEnCours = true %}
+									{% endif %}
+								{% endfor %}
+							{% endif %}
+
+							{% if tirageEnCours %}
+								<p>Impossible de rejoindre, partie en cours</p>
+							{% else %}
+								{% if partiesRejoints %}
+									{% for partieRejoint in partiesRejoints %}
+										{% if partieRejoint.partieId == partie.id and partieRejoint.userId == app.user.id %}
+											{% set hasJoined = true %}
+											<form action="{{ path('partieRejoint_quitter', {id: partieRejoint.partieRejointId}) }}" method="post">
+												<input type="hidden" name="_method" value="DELETE">
+												<button type="submit" class="btn btn-secondary">Quitter</button>
+											</form>
+										{% endif %}
+									{% endfor %}
+								{% endif %}
+
+								{% if not hasJoined %}
+									<a class="btn btn-warning" href="{{ path('partie_rejoindre', {id: partie.id}) }}">Rejoindre</a>
+								{% endif %}
+							{% endif %}
+
+
+						</td>
+					</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</div>
+{% endblock %}
