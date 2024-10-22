@@ -46,11 +46,19 @@ class Partie
     #[ORM\OneToMany(targetEntity: Choix::class, mappedBy: 'partie')]
     private Collection $choixes;
 
+    /**
+     * @var Collection<int, Restriction>
+     */
+    #[ORM\OneToMany(targetEntity: Restriction::class, mappedBy: 'partie')]
+    private Collection $restrictions;
+
+
     public function __construct()
     {
         $this->partieRejoints = new ArrayCollection();
         $this->tirageResultats = new ArrayCollection();
         $this->choixes = new ArrayCollection();
+        $this->restrictions = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -200,4 +208,36 @@ class Partie
 
         return $this;
     }
+
+    /**
+     * @return Collection<int, Restriction>
+     */
+    public function getRestrictions(): Collection
+    {
+        return $this->restrictions;
+    }
+
+    public function addRestriction(Restriction $restriction): static
+    {
+        if (!$this->restrictions->contains($restriction)) {
+            $this->restrictions->add($restriction);
+            $restriction->setPartie($this);
+        }
+
+        return $this;
+    }
+
+    public function removeRestriction(Restriction $restriction): static
+    {
+        if ($this->restrictions->removeElement($restriction)) {
+            // set the owning side to null (unless already changed)
+            if ($restriction->getPartie() === $this) {
+                $restriction->setPartie(null);
+            }
+        }
+
+        return $this;
+    }
+
+   
 }

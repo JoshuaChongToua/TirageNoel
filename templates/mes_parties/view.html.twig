@@ -5,117 +5,198 @@
 {% endblock %}
 
 {% block body %}
-	<style>
-		.example-wrapper {
-			margin: 1em auto;
-			max-width: 800px;
-			width: 95%;
-			font: 18px / 1.5 sans-serif;
-		}
-		.example-wrapper code {
-			background: #F5F5F5;
-			padding: 2px 6px;
-		}
-	</style>
+<style>
+	.example-wrapper {
+		margin: 1em auto;
+		max-width: 800px;
+		width: 95%;
+		font: 18px / 1.5 sans-serif;
+	}
+	.example-wrapper code {
+		background: #F5F5F5;
+		padding: 2px 6px;
+	}
+</style>
 
 
-	<div class="example-wrapper">
-		<p>{{partie.name}}</p>
-		{% if util.role == "hote" %}
-			<a class="btn btn-primary" href="{{ path('mes_parties_edit', {id: partie.id})}}">Modifier</a>
-		{% endif %}
-	</div>
-
-	<a class="btn btn-primary" href="{{ path('mes_parties_addSouhait', {id: partie.id})}}">Souhaits</a>
-
-	<a class="btn btn-primary" href="{{ path('app_choixPersonne', {id: partie.id})}}">Choix</a>
-
+<div class="example-wrapper">
+	<p>{{partie.name}}</p>
 	{% if util.role == "hote" %}
-
-		{% if tirageResultats == [] %}
-			<a class="btn btn-warning" href="{{ path('partie_tirage', {id: partie.id})}}">Commencer le jeu</a>
-		{% else %}
-			<form action="{{ path('partie_terminee', {id: partie.id}) }}" method="post">
-				<button type="submit" class="btn btn-warning">Fin de la partie</button>
-			</form>
-		{% endif %}
+		<a class="btn btn-primary" href="{{ path('mes_parties_edit', {id: partie.id})}}">Modifier</a>
 	{% endif %}
+</div>
+
+<a class="btn btn-primary" href="{{ path('mes_parties_addSouhait', {id: partie.id})}}">Souhaits</a>
 
 
-	<div class="d-flex justify-content-start align-items-center ">
-		<div class="card" style="width: 18rem;">
-			<div class="card-header">
-				Liste des joueurs
-			</div>
-			<ul class="list-group list-group-flush">
-				{% for partieRejoint in partiesRejoints %}
-					{% for user in users %}
-						{% if user.id == partieRejoint.userId %}
-							<li class="list-group-item">{{user.username}}
-								{% if user.id == app.user.id %}
-									(vous)
-								{% endif %}
-								{% if partieRejoint.role == "hote" %}
-									(hote)
-								{% endif %}
-							</li>
-						{% endif %}
-					{% endfor %}
-				{% endfor %}
-			</ul>
+{% if util.role == "hote" %}
+	{% if tirageResultats == [] %}
+		<a class="btn btn-warning" href="{{ path('partie_tirage', {id: partie.id})}}">Commencer le jeu</a>
+		<a class="btn btn-secondary" href="{{ path('partie_restriction', {id: partie.id})}}">Restriction</a>
+
+	{% else %}
+		<form action="{{ path('partie_terminee', {id: partie.id}) }}" method="post">
+			<button type="submit" class="btn btn-warning">Fin de la partie</button>
+		</form>
+	{% endif %}
+{% endif %}
+
+{% if app.user.role.name == "Admin" %}
+	<a class="btn btn-warning" href="{{ path('partie_tirage', {id: partie.id})}}">Choix</a>
+{% endif %}
+
+
+<div class="d-flex justify-content-start align-items-center ">
+	<div class="card" style="width: 18rem;">
+		<div class="card-header">
+			Liste des joueurs
 		</div>
-	</div>
+		<ul class="list-group list-group-flush">
+			{% for partieRejoint in partiesRejoints %}
+				{% for user in users %}
+					{% if user.id == partieRejoint.user.id %}
+						<li class="list-group-item">{{user.username}}
+							{% if user.id == app.user.id %}
+								(vous)
+							{% endif %}
+							{% if partieRejoint.role == "hote" %}
+								(hote)
+							{% endif %}
 
-	<div class="d-flex justify-content-start align-items-center">
-		<div class="card" style="width: 18rem;">
-			<div class="card-header">
-				Cible
-			</div>
-			<ul class="list-group list-group-flush">
-				{% for resultat in tirageResultats %}
-					{% if app.user.id == resultat.joueurId %}
-						{% for user in users %}
-							{% if user.id == resultat.destinataireId %}
-								<li class="list-group-item">{{ user.username }}</li>
-								{% for partieRejoint in partiesRejoints %}
-									{% if user.id == partieRejoint.userId %}
-										{# Vérification si les souhaits sont un tableau (itérable) #}
-										{% if partieRejoint.souhaits is iterable %}
-											{# Si souhaits est un tableau, on l'affiche normalement #}
-											{% for souhait in partieRejoint.souhaits %}
-												<li class="list-group-item">{{ souhait }}</li>
-											{% endfor %}
-										{% else %}
-											{# Sinon, c'est une chaîne qu'on divise par les virgules #}
-											{% for souhait in partieRejoint.souhaits|split(',') %}
-												<li class="list-group-item">
-													{% for part in souhait|split(' ') %}
-														{# Vérification de l'URL avec l'expression régulière correcte #}
-														{% if part matches '/^https?:\\/\\/\\S+$/' %}
-															<a href="{{ part|trim }}">{{ part|trim }}</a>
-														{% else %}
-															{{ part ~ ' ' }}
-														{% endif %}
-													{% endfor %}
-												</li>
-											{% endfor %}
-										{% endif %}
+							{% set tirageEnCours = false %}
+
+							{% if tirages %}
+								{% for tirage in tirages %}
+									{% if tirage.partie.id == partieRejoint.partie.id %}
+										{% set tirageEnCours = true %}
 									{% endif %}
 								{% endfor %}
 							{% endif %}
-						{% endfor %}
+
+							{% if util.role == "hote" %}
+								{% if tirageEnCours == false %}
+									{% if user.id != app.user.id %}
+										<form action="{{ path('mes_parties_kick_user', {id: partie.id ,idUser:user.id })}}" method="post">
+											<input type="hidden" name="_method" value="DELETE">
+											<button type="submit" class="btn btn-danger">Exclure</button>
+										</form>
+									{% endif %}
+								{% endif %}
+							{% endif %}
+						</li>
 					{% endif %}
 				{% endfor %}
-			</ul>
-		</div>
+			{% endfor %}
+		</ul>
 	</div>
+</div>
 
-	votre choix est : {{choix}}
-	
-	<br>
-	a faire : ne pas pouvoir ce choisir soit meme
-<br>
+<div class="d-flex justify-content-start align-items-center">
+	<div class="card" style="width: 18rem;">
+		<div class="card-header">
+			Cible
+		</div>
+		<ul class="list-group list-group-flush">
+			{% for resultat in tirageResultats %}
+				{% if app.user.id == resultat.joueur.id %}
+					{% for user in users %}
+						{% if user.id == resultat.destinataire.id %}
+							<li class="list-group-item">{{ user.username }}</li>
+							{% for partieRejoint in partiesRejoints %}
+								{% if user.id == partieRejoint.user.id %}
+									{# Vérification si les souhaits sont un tableau (itérable) #}
+									{% if partieRejoint.souhaits is iterable %}
+										{# Si souhaits est un tableau, on l'affiche normalement #}
+										{% for souhait in partieRejoint.souhaits %}
+											<li class="list-group-item">{{ souhait }}</li>
+										{% endfor %}
+									{% else %}
+										{# Sinon, c'est une chaîne qu'on divise par les virgules #}
+										{% for souhait in partieRejoint.souhaits|split(',') %}
+											<li class="list-group-item">
+												{% for part in souhait|split(' ') %}
+													{# Vérification de l'URL avec l'expression régulière correcte #}
+													{% if part matches '/^https?:\\/\\/\\S+$/' %}
+														<a href="{{ part|trim }}">{{ part|trim }}</a>
+													{% else %}
+														{{ part ~ ' ' }}
+													{% endif %}
+												{% endfor %}
+											</li>
+										{% endfor %}
+									{% endif %}
+								{% endif %}
+							{% endfor %}
+						{% endif %}
+					{% endfor %}
+				{% endif %}
+			{% endfor %}
+		</ul>
+	</div>
+</div>
+{% if choix %}
+	votre choix est :{{choix}}
+{% endif %}
 
-supprimmer en base lors d'un choix
+<div class="example-wrapper">
 
-{% endblock %}
+	<table class="table">
+		<thead>
+			<tr>
+				<th scope="col">Joueur</th>
+				<th scope="col">Interdit</th>
+				{% if util.role == 'hote' %}
+					<th scope="col">option</th>
+				{% endif %}
+			</tr>
+
+		</thead>
+		<tbody>
+			{% for restriction in restrictions %}
+				<tr>
+					<td>{{restriction.joueur.username}}</td>
+					<td>{{restriction.interdit.username}}</td>
+
+					<td>
+						<form action="{{ path('partie_restriction_delete', {id: partie.id , idRestriction:restriction.id })}}" method="post">
+
+							<input type="hidden" name="_method" value="DELETE">
+							<button type="submit" class="btn btn-danger">Supprimer</button>
+						</form>
+					</td>
+
+				</tr>
+			{% endfor %}
+		</tbody>
+	</tr>
+
+
+	{% if app.user.role.name == "Admin" %}
+
+		<div class="example-wrapper">
+
+			<table class="table">
+				<thead>
+					<tr>
+						<th scope="col">Joueur</th>
+						<th scope="col">Cible</th>
+						<th scope="col">option</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for tirage in tirageResultats %}
+						<tr>
+							<td>{{tirage.joueur.username}}</td>
+							<td>{{tirage.destinataire.username}}</td>
+							<td>
+								{% if app.user.role.name == "Admin" %}
+									<a class="btn btn-primary" href="{{ path('app_choixPersonne', {id: partie.id ,idUser:tirage.joueur.id})}}">Choix</a>
+								{% endif %}
+							</td>
+						</tr>
+					</tbody>
+				</tbody>
+			</tr>
+		{% endfor %}
+	</table>
+</div>{% endif %}{% endblock %}

@@ -66,6 +66,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     #[ORM\OneToMany(targetEntity: Choix::class, mappedBy: 'joueur')]
     private Collection $choixes;
+
+    /**
+     * @var Collection<int, Restriction>
+     */
+    #[ORM\OneToMany(targetEntity: Restriction::class, mappedBy: 'joueur')]
+    private Collection $restrictions;
+
+   
     
 
     public function __construct()
@@ -76,6 +84,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->parties = new ArrayCollection();
         $this->tiragesEnTantQueDestinataire = new ArrayCollection();
         $this->choixes = new ArrayCollection();
+        $this->restrictions = new ArrayCollection();
 
     }
    
@@ -351,6 +360,38 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         return $this;
     }
+
+    /**
+     * @return Collection<int, Restriction>
+     */
+    public function getRestrictions(): Collection
+    {
+        return $this->restrictions;
+    }
+
+    public function addRestriction(Restriction $restriction): static
+    {
+        if (!$this->restrictions->contains($restriction)) {
+            $this->restrictions->add($restriction);
+            $restriction->setJoueur($this);
+        }
+
+        return $this;
+    }
+
+    public function removeRestriction(Restriction $restriction): static
+    {
+        if ($this->restrictions->removeElement($restriction)) {
+            // set the owning side to null (unless already changed)
+            if ($restriction->getJoueur() === $this) {
+                $restriction->setJoueur(null);
+            }
+        }
+
+        return $this;
+    }
+
+    
 
     
 

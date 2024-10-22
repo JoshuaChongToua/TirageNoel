@@ -5,15 +5,20 @@ namespace App\Controller;
 use App\Entity\Choix;
 use App\Entity\Partie;
 use App\Entity\PartieRejoint;
+use App\Entity\Restriction;
 use App\Entity\TirageResultat;
+use App\Entity\User;
 use App\Form\PartieType;
+use App\Form\RestrictionType;
 use App\Form\SouhaitType;
 use App\Repository\ChoixRepository;
 use App\Repository\PartieRejointRepository;
 use App\Repository\PartieRepository;
+use App\Repository\RestrictionRepository;
 use App\Repository\TirageResultatRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Mapping\Id;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -25,7 +30,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 class MesPartiesController extends AbstractController
 {
-    
+
     #[Route('/mes-parties', name: 'app_mes_parties')]
     #[IsGranted('ROLE_USER')]
     public function index(PartieRejointRepository $partieRejointRepository, PartieRepository $partieRepository): Response
@@ -53,32 +58,38 @@ class MesPartiesController extends AbstractController
 
 
     #[Route('/mes-parties/view/{id}', name: 'mes_parties_view')]
-    public function view(ChoixRepository $choixRepository, PartieRejointRepository $partieRejointRepository, PartieRepository $partieRepo, $id, UserRepository $userRepository, TirageResultatRepository $tirageResultatRepository): Response
+    public function view(RestrictionRepository $restrictionRepository, ChoixRepository $choixRepository, PartieRejointRepository $partieRejointRepository, PartieRepository $partieRepo, $id, UserRepository $userRepository, TirageResultatRepository $tirageResultatRepository): Response
     {
         $user = $this->getUser();
         $partie = $partieRepo->find($id);
         $users = $userRepository->findAll();
-        $tirageResultats = $tirageResultatRepository->findByPartieId($partie);
-        $choix = $choixRepository->findAll();
+        $choix = $choixRepository->findBy(['partie' => $partie]);
         $choixFinal = "";
+        $tirageResultatRepo = $tirageResultatRepository->findBy(['partie' => $partie]);
+        $tirages = $tirageResultatRepository->findAll();
+        $restrictions = $restrictionRepository->findAll();
 
-        if($choixRepository) {
-            $choixFinal = $choixRepository->findOneBy(['joueur' =>$user, 'partie' => $partie])->getPersonneChoisie()->getUsername();
-        } 
+
+        if ($choix) {
+            $choixFinal = $choixRepository->findOneBy(['joueur' => $user, 'partie' => $partie])->getPersonneChoisie()->getUsername();
+        }
         $roleUser = $partieRejointRepository->findOneBy([
             'partie' => $partie,
             'user' => $user
         ]);
 
 
-        $partiesRejoints = $partieRejointRepository->findByPartieId($partie->getId());
+        $partiesRejoints = $partieRejointRepository->findBy(['partie' => $partie]);
+
         return $this->render('mes_parties/view.html.twig', [
             'partie' => $partie,
             'partiesRejoints' => $partiesRejoints,
             'users' => $users,
-            'tirageResultats' => $tirageResultats,
-            'util'=> $roleUser,
-            'choix' => $choixFinal
+            'tirageResultats' => $tirageResultatRepo,
+            'tirages' => $tirages,
+            'util' => $roleUser,
+            'choix' => $choixFinal,
+            'restrictions' => $restrictions
         ]);
     }
 
@@ -122,33 +133,69 @@ class MesPartiesController extends AbstractController
         return $this->redirectToRoute('app_partie');
     }
 
+    #[Route('/mes-partie/{id}/restriction/{idRestriction}', name: 'partie_restriction_delete', methods: ['DELETE'])]
+    public function delete(RestrictionRepository $restrictionRepository ,int $idRestriction, Partie $partie, EntityManagerInterface $em)
+    {
+        $restriction = $restrictionRepository->find($idRestriction);
+        $em->remove($restriction);
+        $em->flush();
+        $this->addFlash('success', 'Restriction supprimée');
+
+        return $this->redirectToRoute('mes_parties_view', ['id' => $partie->getId()]);
+    }
+
+
+
+
     #[Route('/mes-partie/{id}/tirage', name: 'partie_tirage')]
-    public function tirageAuSort(PartieRepository $partieRepository, PartieRejointRepository $partieRejointRepository, EntityManagerInterface $em, $id, UserRepository $userRepository): Response
+    public function tirageAuSort(RestrictionRepository $restrictionRepository, PartieRepository $partieRepository, PartieRejointRepository $partieRejointRepository, EntityManagerInterface $em, $id, UserRepository $userRepository): Response
     {
         $partie = $partieRepository->find($id);
         $partiesRejoints = $partieRejointRepository->findByPartieId($partie->getId());
+        $restrictions = $restrictionRepository->findByPartieId($id);
 
+        // Récupération des participants
         $participants = [];
-
         foreach ($partiesRejoints as $partieRejoint) {
             $participants[] = $partieRejoint['userId'];
         }
 
+        // Vérification du nombre de participants
         if (count($participants) < 2) {
             $this->addFlash('error', 'Le tirage au sort nécessite au moins 2 participants.');
             return $this->redirectToRoute('mes_parties_view', ['id' => $id]);
         }
 
+        // Copie des participants pour les destinataires
         $destinataires = $participants;
 
         do {
             shuffle($destinataires);
-        } while (!$this->tirageValide($participants, $destinataires));
 
-        foreach ($participants as $index => $participant) {
-            $destinataire = $destinataires[$index];
-            $participant = $userRepository->find($participant);
-            $destinataire = $userRepository->find($destinataire);
+            $tirageValide = true;
+
+            foreach ($participants as $index => $participantId) {
+                $participant = $userRepository->find($participantId);
+                $destinataire = $userRepository->find($destinataires[$index]);
+
+                if ($participantId === $destinataires[$index]) {
+                    $tirageValide = false;
+                    break; // Quitte la boucle si un utilisateur se tire lui-même
+                }
+
+                if ($restrictions) {
+                    if (!$this->tirageValideRestriction($partie->getId(), $participant, $destinataire, $restrictionRepository)) {
+                        $tirageValide = false;
+                        break;
+                    }
+                }
+            }
+        } while (!$tirageValide);
+
+        // Sauvegarde du tirage dans la base de données
+        foreach ($participants as $index => $participantId) {
+            $participant = $userRepository->find($participantId);
+            $destinataire = $userRepository->find($destinataires[$index]);
 
             $tirageResultat = new TirageResultat();
             $tirageResultat->setJoueur($participant);
@@ -175,8 +222,18 @@ class MesPartiesController extends AbstractController
         return true;
     }
 
+    private function tirageValideRestriction(int $idPartie, User $joueur, User $interdit, RestrictionRepository $restrictionRepository): bool
+    {
+        // Récupère une restriction spécifique pour ce joueur, interdit, et partie
+        $restriction = $restrictionRepository->findRestriction($idPartie, $joueur->getId(), $interdit->getId());
+
+        // Si une restriction existe, le tirage n'est pas valide
+        return $restriction === null;
+    }
+
+
     #[Route('/mes-parties/terminer/{id}', name: 'partie_terminee', methods: ['POST'])]
-    public function finPartie(int $id, TirageResultatRepository $tirageResultatRepository, EntityManagerInterface $em, PartieRepository $partieRepository): Response
+    public function finPartie(RestrictionRepository $restrictionRepository, ChoixRepository $choixRepository, int $id, TirageResultatRepository $tirageResultatRepository, EntityManagerInterface $em, PartieRepository $partieRepository): Response
     {
         $partie = $partieRepository->find($id);
         if (!$partie) {
@@ -185,10 +242,20 @@ class MesPartiesController extends AbstractController
         }
 
         $tirages = $tirageResultatRepository->findBy(['partie' => $partie]);
+        $choix = $choixRepository->findBy(['partie' => $partie]);
+        $restrictions = $restrictionRepository->findBy(['partie' => $partie]);
 
         foreach ($tirages as $tirage) {
             $em->remove($tirage);
         }
+
+        foreach ($choix as $ligne) {
+            $em->remove($ligne);
+        }
+
+        // foreach ($restrictions as $ligne) {
+        //     $em->remove($ligne);
+        // }
 
         $em->flush();
 
@@ -253,5 +320,20 @@ class MesPartiesController extends AbstractController
             'partieRejoint' => $partieRejoint,
             'form' => $form->createView()
         ]);
+    }
+
+    #[Route('/mes-parties/view/{id}/{idUser}', name: 'mes_parties_kick_user', methods: ['DELETE'])]
+    public function kick(PartieRepository $partieRepo, RestrictionRepository $restrictionRepository, PartieRejointRepository $partieRejointRepository, int $idUser, int $id, EntityManagerInterface $em)
+    {
+        $partie = $partieRepo->find($id);
+        $restriction = $restrictionRepository->findOneBy(['joueur' => $idUser, 'partie'=>$partie ]);
+        if($restriction) {
+            $em->remove($restriction);
+        }
+        $user = $partieRejointRepository->findOneBy(['user' => $idUser]);
+        $em->remove($user);
+        $em->flush();
+        $this->addFlash('success', 'Suppression Réussie');
+        return $this->redirectToRoute('mes_parties_view', ['id' => $id]);
     }
 }

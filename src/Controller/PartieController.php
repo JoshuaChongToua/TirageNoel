@@ -16,6 +16,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasher;
 use Symfony\Component\PasswordHasher\PasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -25,6 +26,7 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class PartieController extends AbstractController
 {
+
     #[Route('/partie', name: 'app_partie')]
     #[IsGranted('ROLE_USER')]
 
@@ -75,8 +77,10 @@ class PartieController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $plainPassword = $partie->getPassword();
             if (!empty($plainPassword)) {
-                $partie->setPassword($hasher->hashPassword($user, $partie->getPassword())); 
+                $hashedPassword = password_hash($plainPassword, PASSWORD_BCRYPT);
+                $partie->setPassword($hashedPassword);
             }
+
             $partie->setCreateur($this->getUser());
             $partieRejoint->setRole("hote");
             $partieRejoint->setUser($user);
@@ -141,7 +145,7 @@ class PartieController extends AbstractController
     }
 
     #[Route('/partie/rejoindre/{id}', name: 'partie_rejoindre')]
-    public function rejoindre(Request $request, EntityManagerInterface $em, UserRepository $userRepository, PartieRepository $partieRepository): Response
+    public function rejoindre( Request $request, EntityManagerInterface $em, UserRepository $userRepository, PartieRepository $partieRepository): Response
     {
         $partie = $partieRepository->find($request->attributes->get('id'));
 
@@ -153,12 +157,10 @@ class PartieController extends AbstractController
                 $data = $form->getData();
 
                 // Vérifiez le mot de passe
-                if ($data['mot_de_passe'] !== $partie->getPassword()) {
+                if (!password_verify($data['mot_de_passe'], $partie->getPassword())) {
                     $this->addFlash('error', 'Mot de passe incorrect.');
-
                     return $this->redirectToRoute('partie_rejoindre', ['id' => $request->attributes->get('id')]);
                 }
-
                 $userInterface = $this->getUser();
                 $user = $userRepository->find($userInterface->getId());
 

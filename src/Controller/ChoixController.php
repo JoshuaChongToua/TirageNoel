@@ -4,8 +4,10 @@ namespace App\Controller;
 
 use App\Entity\Choix;
 use App\Form\ChoixType;
+use App\Repository\ChoixRepository;
 use App\Repository\PartieRejointRepository;
 use App\Repository\PartieRepository;
+use App\Repository\TirageResultatRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
@@ -24,36 +26,61 @@ class ChoixController extends AbstractController
         ]);
     }
 
-    #[Route('/choix/choixPersonne/{id}', name: 'app_choixPersonne')]
-    public function choixPersonne(Request $request, UserRepository $userRepository, PartieRejointRepository $partieRejointRepository, PartieRepository $partieRepository, $id, EntityManagerInterface $em): Response
-    {
-        $util = $this->getUser();
-        $partie = $partieRepository->find($id);
+    #[Route('/choix/choixPersonne/{id}/{idUser}', name: 'app_choixPersonne')]
+    public function choixPersonne(
+        TirageResultatRepository $tirageResultatRepository,
+        $idUser,
+        ChoixRepository $choixRepository,
+        Request $request,
+        UserRepository $userRepository,
+        PartieRejointRepository $partieRejointRepository,
+        PartieRepository $partieRepository,
+        $id,
+        EntityManagerInterface $em
+    ): Response {
 
+        $user = $userRepository->find($idUser);
+        $partie = $partieRepository->find($id);
+        $tirageResultatRepo = $tirageResultatRepository->findBy(['partie' => $partie]);
 
         $form = $this->createForm(ChoixType::class, null, ['partie' => $partie]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
+
+            $ancienChoix = $choixRepository->findOneBy(['joueur' => $user, 'partie' => $partie]);
+            if ($ancienChoix) {
+                $em->remove($ancienChoix);
+            }
+
             $choix = new Choix();
-            $choix->setJoueur($util); 
+            $choix->setJoueur($user);
             $choix->setPersonneChoisie($form->get('personneChoisie')->getData());
             $choix->setPartie($partie);
-            //dd($form->get('personneChoisie')->getData()->getId());
-            
             $em->persist($choix);
+
+            foreach ($tirageResultatRepo as $tirage) {
+                if ($tirage->getJoueur()->getId() == $user->getId()) {
+                    $tirage->setDestinataire($choix->getPersonneChoisie());
+                    $em->persist($tirage);
+                }
+            }
+
             $em->flush();
 
             $this->addFlash('success', 'Votre choix a été enregistré.');
 
-            return $this->redirectToRoute('mes_parties_view', ['id' => $partie->getId()]); 
+            return $this->redirectToRoute('mes_parties_view', ['id' => $partie->getId()]);
         }
 
+        // Affichage du formulaire
         return $this->render('choix/edit.html.twig', [
             'controller_name' => 'ChoixController',
             'form' => $form
         ]);
     }
+
+
 
 
 }
